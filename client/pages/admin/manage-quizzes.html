@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Quizzes — QuizMaster</title>
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        .sidebar {
+            width: 250px;
+            background: var(--dark-2);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2rem;
+            display: block;
+        }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li { margin-bottom: 0.3rem; }
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .sidebar-menu a:hover { background: var(--dark-3); color: var(--text); }
+        .sidebar-menu a.active {
+            background: rgba(79,70,229,0.15);
+            color: var(--primary-light);
+        }
+        .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+        .main-content { margin-left: 250px; padding: 2rem; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; }
+        .page-header p { color: var(--text-muted); }
+        .quiz-actions { display: flex; gap: 0.5rem; }
+
+        /* EDIT MODAL */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid var(--border);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-header h3 { font-size: 1.3rem; font-weight: 700; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: var(--text); }
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .toggle-switch input[type="checkbox"] {
+            width: 40px;
+            height: 20px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <a href="admin-dashboard.html" class="logo">⚡ QuizMaster</a>
+        <ul class="sidebar-menu">
+            <li><a href="admin-dashboard.html">📊 Dashboard</a></li>
+            <li><a href="quiz-builder.html">🛠️ Quiz Builder</a></li>
+            <li><a href="manage-quizzes.html" class="active">📋 Manage Quizzes</a></li>
+            <li><a href="students.html">👥 Students</a></li>
+            <li><a href="results.html">🏆 All Results</a></li>
+        </ul>
+        <hr class="sidebar-divider">
+        <ul class="sidebar-menu">
+            <li><a href="#" onclick="logout()">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <div class="page-header">
+            <div>
+                <h1>📋 Manage Quizzes</h1>
+                <p style="color:var(--text-muted);">Edit, delete or toggle quiz visibility</p>
+            </div>
+            <a href="quiz-builder.html" class="btn btn-primary">+ Create New Quiz</a>
+        </div>
+
+        <!-- ALERT -->
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-error" id="errorAlert"></div>
+
+        <!-- QUIZZES TABLE -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>Time Limit</th>
+                        <th>Questions</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quizzesTable">
+                    <tr>
+                        <td colspan="7" style="text-align:center;">
+                            <div class="spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✏️ Edit Quiz</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+
+            <input type="hidden" id="editQuizId"/>
+
+            <div class="form-group">
+                <label>Quiz Title *</label>
+                <input type="text" id="editTitle" placeholder="Quiz title"/>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="editDesc" rows="3" style="resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Time Limit (minutes) *</label>
+                <input type="number" id="editTimeLimit" min="1" max="180"/>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="editIsActive"/>
+                    <label for="editIsActive" style="color:var(--text-muted);">
+                        Active (visible to students)
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:1rem; margin-top:1rem;">
+                <button class="btn btn-outline" style="flex:1; justify-content:center;"
+                    onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1; justify-content:center;"
+                    onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token) window.location.href = '../login.html';
+        if (user.role !== 'admin') window.location.href = '../dashboard.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        let allQuizzes = [];
+
+        async function loadQuizzes() {
+            try {
+                const res = await fetch(`${API}/quiz`, { headers });
+                allQuizzes = await res.json();
+                renderTable(allQuizzes);
+            } catch (error) {
+                console.error('Error loading quizzes:', error);
+            }
+        }
+
+        function renderTable(quizzes) {
+            const tbody = document.getElementById('quizzesTable');
+            if (quizzes.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding:3rem;
+                            color:var(--text-muted);">
+                            No quizzes yet.
+                            <a href="quiz-builder.html"
+                                style="color:var(--primary-light);">Create one!</a>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = quizzes.map((q, i) => `
+                <tr>
+                    <td style="color:var(--text-muted);">${i + 1}</td>
+                    <td><strong>${q.title}</strong></td>
+                    <td><span class="badge badge-primary">⏱ ${q.time_limit} mins</span></td>
+                    <td><span class="badge badge-warning">❓ ${q.total_questions}</span></td>
+                    <td>
+                        <span class="badge ${q.is_active ? 'badge-success' : 'badge-danger'}">
+                            ${q.is_active ? '✅ Active' : '❌ Inactive'}
+                        </span>
+                    </td>
+                    <td style="color:var(--text-muted);">
+                        ${new Date(q.created_at).toLocaleDateString()}
+                    </td>
+                    <td>
+                        <div class="quiz-actions">
+                            <button class="btn btn-outline btn-sm"
+                                onclick="openEditModal(${q.id})">✏️ Edit</button>
+                            <button class="btn btn-danger btn-sm"
+                                onclick="deleteQuiz(${q.id}, '${q.title}')">🗑️ Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openEditModal(quizId) {
+            const quiz = allQuizzes.find(q => q.id === quizId);
+            if (!quiz) return;
+
+            document.getElementById('editQuizId').value = quiz.id;
+            document.getElementById('editTitle').value = quiz.title;
+            document.getElementById('editDesc').value = quiz.description || '';
+            document.getElementById('editTimeLimit').value = quiz.time_limit;
+            document.getElementById('editIsActive').checked = quiz.is_active;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('editQuizId').value;
+            const title = document.getElementById('editTitle').value.trim();
+            const description = document.getElementById('editDesc').value.trim();
+            const time_limit = document.getElementById('editTimeLimit').value;
+            const is_active = document.getElementById('editIsActive').checked;
+
+            if (!title || !time_limit) {
+                alert('Title and time limit are required.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/admin/quiz/${id}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ title, description, time_limit, is_active })
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    showAlert('success', 'Quiz updated successfully!');
+                    loadQuizzes();
+                } else {
+                    const data = await res.json();
+                    showAlert('error', data.message || 'Failed to update quiz.');
+                }
+            } catch (error) {
+                showAlert('error', 'Server error. Please try again.');
+            }
+        }
+
+        async function deleteQuiz(id, title) {
+            if (!confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/admin/quiz/${id}`, {
+                    method: 'DELETE', headers
+                });
+
+                if (res.ok) {
+                    showAlert('success', `Quiz "${title}" deleted successfully!`);
+                    loadQuizzes();
+                } else {
+                    const data = await res.json();
+                    showAlert('error', data.message || 'Failed to delete quiz.');
+                }
+            } catch (error) {
+                showAlert('error', 'Server error. Please try again.');
+            }
+        }
+
+        function showAlert(type, message) {
+            const el = document.getElementById(
+                type === 'success' ? 'successAlert' : 'errorAlert'
+            );
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '../login.html';
+        }
+
+        loadQuizzes();
+    </script>
+
+</body>
+</html>

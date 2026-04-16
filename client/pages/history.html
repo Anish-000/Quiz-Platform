@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Results — QuizMaster</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .history-header {
+            background: radial-gradient(ellipse at top, #1e1b4b 0%, var(--dark) 70%);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .history-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .history-header p { color: var(--text-muted); }
+        .history-body {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.2rem;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .summary-card h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .summary-card p { color: var(--text-muted); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="dashboard.html" class="logo">⚡ QuizMaster</a>
+        <div class="nav-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="quizzes.html">Quizzes</a>
+            <a href="history.html">My Results</a>
+            <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <!-- HEADER -->
+    <div class="history-header">
+        <h1>📋 My Results</h1>
+        <p>Track your performance across all quizzes</p>
+    </div>
+
+    <div class="history-body">
+
+        <!-- SUMMARY -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3 id="totalTaken">0</h3>
+                <p>Quizzes Taken</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="avgScore">0%</h3>
+                <p>Average Score</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="bestScore">0%</h3>
+                <p>Best Score</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="passRate">0%</h3>
+                <p>Pass Rate</p>
+            </div>
+        </div>
+
+        <!-- RESULTS TABLE -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Quiz</th>
+                        <th>Score</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
+                        <th>Time Taken</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                    <tr>
+                        <td colspan="8" style="text-align:center;">
+                            <div class="spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>© 2024 <strong>QuizMaster</strong> — Built with ❤️ using Node.js, Express & MySQL</p>
+    </footer>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        async function loadHistory() {
+            try {
+                const res = await fetch(`${API}/quiz/my-results`, { headers });
+                const results = await res.json();
+                renderSummary(results);
+                renderTable(results);
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        function renderSummary(results) {
+            if (results.length === 0) return;
+            document.getElementById('totalTaken').textContent = results.length;
+            const avg = results.reduce((s, r) => s + parseFloat(r.percentage), 0) / results.length;
+            document.getElementById('avgScore').textContent = avg.toFixed(1) + '%';
+            const best = Math.max(...results.map(r => parseFloat(r.percentage)));
+            document.getElementById('bestScore').textContent = best.toFixed(1) + '%';
+            const passed = results.filter(r => parseFloat(r.percentage) >= 50).length;
+            document.getElementById('passRate').textContent =
+                ((passed / results.length) * 100).toFixed(0) + '%';
+        }
+
+        function getGrade(percentage) {
+            if (percentage >= 90) return { grade: 'A+', color: 'var(--success)' };
+            if (percentage >= 80) return { grade: 'A', color: 'var(--success)' };
+            if (percentage >= 70) return { grade: 'B', color: 'var(--primary-light)' };
+            if (percentage >= 60) return { grade: 'C', color: 'var(--warning)' };
+            if (percentage >= 50) return { grade: 'D', color: 'var(--warning)' };
+            return { grade: 'F', color: 'var(--danger)' };
+        }
+
+        function renderTable(results) {
+            const tbody = document.getElementById('resultsTable');
+            if (results.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                            No results yet. <a href="quizzes.html" style="color:var(--primary-light);">Take a quiz!</a>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = results.map((r, i) => {
+                const { grade, color } = getGrade(parseFloat(r.percentage));
+                const mins = Math.floor(r.time_taken / 60);
+                const secs = r.time_taken % 60;
+                return `
+                    <tr>
+                        <td style="color:var(--text-muted);">${i + 1}</td>
+                        <td><strong>${r.quiz_title}</strong></td>
+                        <td>${r.score}/${r.total_marks}</td>
+                        <td>
+                            <div class="progress-bar" style="width:120px;">
+                                <div class="progress-fill" style="width:${r.percentage}%"></div>
+                            </div>
+                            <small>${r.percentage}%</small>
+                        </td>
+                        <td>
+                            <span style="color:${color}; font-weight:700;">${grade}</span>
+                        </td>
+                        <td style="color:var(--text-muted);">${mins}m ${secs}s</td>
+                        <td style="color:var(--text-muted);">
+                            ${new Date(r.created_at).toLocaleDateString()}
+                        </td>
+                        <td>
+                            <a href="results.html?attemptId=${r.attempt_id}"
+                                class="btn btn-outline btn-sm">Review</a>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        loadHistory();
+    </script>
+
+</body>
+</html>

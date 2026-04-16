@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — QuizMaster</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .quiz-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .question-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+        .nav-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .nav-dot.answered {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        .nav-dot.active {
+            border-color: var(--secondary);
+            color: var(--secondary);
+        }
+        .quiz-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+        .submit-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .submit-box {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid var(--border);
+        }
+        .submit-box h2 { margin-bottom: 0.5rem; }
+        .submit-box p { color: var(--text-muted); margin-bottom: 2rem; }
+        .submit-box .btn-group { display: flex; gap: 1rem; justify-content: center; }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="dashboard.html" class="logo">⚡ QuizMaster</a>
+        <div class="nav-links">
+            <div class="timer" id="timer">⏱ 00:00</div>
+        </div>
+    </nav>
+
+    <div class="quiz-container">
+
+        <!-- QUIZ HEADER -->
+        <div class="quiz-header">
+            <div>
+                <h2 id="quizTitle" style="font-size:1.2rem;">Loading Quiz...</h2>
+                <p style="color:var(--text-muted); font-size:0.85rem;" id="quizMeta"></p>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="showSubmitConfirm()">
+                Submit Quiz
+            </button>
+        </div>
+
+        <!-- QUESTION NAVIGATION DOTS -->
+        <div class="question-nav" id="questionNav"></div>
+
+        <!-- PROGRESS -->
+        <div class="quiz-progress">
+            <span id="progressText">Question 1 of 0</span>
+            <span id="answeredText">0 answered</span>
+        </div>
+        <div class="progress-bar" style="margin-bottom:2rem;">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+
+        <!-- QUESTION CARD -->
+        <div class="question-card" id="questionCard">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- NAVIGATION BUTTONS -->
+        <div class="quiz-actions">
+            <button class="btn btn-outline" id="prevBtn" onclick="changeQuestion(-1)" disabled>
+                ← Previous
+            </button>
+            <button class="btn btn-primary" id="nextBtn" onclick="changeQuestion(1)">
+                Next →
+            </button>
+        </div>
+
+    </div>
+
+    <!-- SUBMIT CONFIRMATION -->
+    <div class="submit-overlay" id="submitOverlay">
+        <div class="submit-box">
+            <div style="font-size:3rem; margin-bottom:1rem;">📋</div>
+            <h2>Submit Quiz?</h2>
+            <p id="submitSummary">You have answered 0 out of 0 questions.</p>
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="hideSubmitConfirm()">Cancel</button>
+                <button class="btn btn-success" onclick="submitQuiz()">Yes, Submit!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Get quiz ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+        if (!quizId) window.location.href = 'dashboard.html';
+
+        let quizData = null;
+        let questions = [];
+        let currentIndex = 0;
+        let answers = {};
+        let attemptId = null;
+        let timerInterval = null;
+        let timeLeft = 0;
+        let startTime = Date.now();
+
+        async function loadQuiz() {
+            try {
+                // Start attempt
+                const startRes = await fetch(`${API}/quiz/${quizId}/start`, {
+                    method: 'POST', headers
+                });
+                const startData = await startRes.json();
+                attemptId = startData.attemptId;
+                timeLeft = startData.timeLimit * 60;
+
+                // Load quiz data
+                const quizRes = await fetch(`${API}/quiz/${quizId}`, { headers });
+                const data = await quizRes.json();
+                quizData = data.quiz;
+                questions = data.questions;
+
+                document.getElementById('quizTitle').textContent = quizData.title;
+                document.getElementById('quizMeta').textContent =
+                    `${questions.length} Questions • ${quizData.time_limit} Minutes`;
+
+                renderQuestionNav();
+                renderQuestion(0);
+                startTimer();
+
+            } catch (error) {
+                console.error('Error loading quiz:', error);
+            }
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert('⏰ Time is up! Submitting your quiz...');
+                    submitQuiz();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const secs = (timeLeft % 60).toString().padStart(2, '0');
+            const timerEl = document.getElementById('timer');
+            timerEl.textContent = `⏱ ${mins}:${secs}`;
+
+            timerEl.className = 'timer';
+            if (timeLeft <= 60) timerEl.classList.add('danger');
+            else if (timeLeft <= 300) timerEl.classList.add('warning');
+        }
+
+        function renderQuestionNav() {
+            const nav = document.getElementById('questionNav');
+            nav.innerHTML = questions.map((q, i) => `
+                <button class="nav-dot ${i === currentIndex ? 'active' : ''} ${answers[q.id] ? 'answered' : ''}"
+                    onclick="renderQuestion(${i})">${i + 1}</button>
+            `).join('');
+        }
+
+        function renderQuestion(index) {
+            currentIndex = index;
+            const q = questions[index];
+
+            document.getElementById('progressText').textContent =
+                `Question ${index + 1} of ${questions.length}`;
+            document.getElementById('answeredText').textContent =
+                `${Object.keys(answers).length} answered`;
+            document.getElementById('progressFill').style.width =
+                `${((index + 1) / questions.length) * 100}%`;
+
+            document.getElementById('prevBtn').disabled = index === 0;
+            document.getElementById('nextBtn').textContent =
+                index === questions.length - 1 ? 'Review ✓' : 'Next →';
+
+            document.getElementById('questionCard').innerHTML = `
+                <div class="question-number">Question ${index + 1} of ${questions.length} • ${q.marks} mark(s)</div>
+                <div class="question-text">${q.question_text}</div>
+                <div class="options-list">
+                    ${q.options.map(opt => `
+                        <div class="option-item ${answers[q.id] == opt.id ? 'selected' : ''}"
+                            onclick="selectAnswer(${q.id}, ${opt.id}, this)">
+                            <div style="width:20px; height:20px; border-radius:50%; border:2px solid ${answers[q.id] == opt.id ? 'var(--primary)' : 'var(--border)'}; display:flex; align-items:center; justify-content:center;">
+                                ${answers[q.id] == opt.id ? '●' : ''}
+                            </div>
+                            <span>${opt.option_text}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            renderQuestionNav();
+        }
+
+        function selectAnswer(questionId, optionId, el) {
+            answers[questionId] = optionId;
+            document.querySelectorAll('.option-item').forEach(item => {
+                item.classList.remove('selected');
+                item.querySelector('div').style.borderColor = 'var(--border)';
+                item.querySelector('div').innerHTML = '';
+            });
+            el.classList.add('selected');
+            el.querySelector('div').style.borderColor = 'var(--primary)';
+            el.querySelector('div').innerHTML = '●';
+            renderQuestionNav();
+            document.getElementById('answeredText').textContent =
+                `${Object.keys(answers).length} answered`;
+        }
+
+        function changeQuestion(direction) {
+            const newIndex = currentIndex + direction;
+            if (newIndex >= 0 && newIndex < questions.length) {
+                renderQuestion(newIndex);
+            }
+        }
+
+        function showSubmitConfirm() {
+            const answered = Object.keys(answers).length;
+            const total = questions.length;
+            document.getElementById('submitSummary').textContent =
+                `You have answered ${answered} out of ${total} questions.`;
+            document.getElementById('submitOverlay').style.display = 'flex';
+        }
+
+        function hideSubmitConfirm() {
+            document.getElementById('submitOverlay').style.display = 'none';
+        }
+
+        async function submitQuiz() {
+            clearInterval(timerInterval);
+            hideSubmitConfirm();
+
+            const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+
+            try {
+                const res = await fetch(`${API}/quiz/${quizId}/submit`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ attemptId, answers, timeTaken })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('lastResult', JSON.stringify({
+                        ...data,
+                        quizTitle: quizData.title,
+                        attemptId
+                    }));
+                    window.location.href = `results.html?attemptId=${attemptId}`;
+                } else {
+                    alert(data.message || 'Submission failed.');
+                }
+
+            } catch (error) {
+                console.error('Submit error:', error);
+                alert('Error submitting quiz. Please try again.');
+            }
+        }
+
+        loadQuiz();
+    </script>
+
+</body>
+</html>

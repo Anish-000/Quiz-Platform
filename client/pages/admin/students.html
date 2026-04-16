@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students — QuizMaster</title>
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        .sidebar {
+            width: 250px;
+            background: var(--dark-2);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2rem;
+            display: block;
+        }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li { margin-bottom: 0.3rem; }
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .sidebar-menu a:hover { background: var(--dark-3); color: var(--text); }
+        .sidebar-menu a.active {
+            background: rgba(79,70,229,0.15);
+            color: var(--primary-light);
+        }
+        .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+        .main-content { margin-left: 250px; padding: 2rem; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; }
+        .search-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .search-row input {
+            flex: 1;
+            max-width: 400px;
+            padding: 0.7rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .search-row input:focus { border-color: var(--primary); }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gradient);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: white;
+            margin-right: 0.5rem;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.2rem;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .summary-card h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .summary-card p { color: var(--text-muted); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <a href="admin-dashboard.html" class="logo">⚡ QuizMaster</a>
+        <ul class="sidebar-menu">
+            <li><a href="admin-dashboard.html">📊 Dashboard</a></li>
+            <li><a href="quiz-builder.html">🛠️ Quiz Builder</a></li>
+            <li><a href="manage-quizzes.html">📋 Manage Quizzes</a></li>
+            <li><a href="students.html" class="active">👥 Students</a></li>
+            <li><a href="results.html">🏆 All Results</a></li>
+        </ul>
+        <hr class="sidebar-divider">
+        <ul class="sidebar-menu">
+            <li><a href="#" onclick="logout()">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <div class="page-header">
+            <div>
+                <h1>👥 Students</h1>
+                <p style="color:var(--text-muted);">Manage all registered students</p>
+            </div>
+        </div>
+
+        <!-- SUMMARY CARDS -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3 id="totalStudents">0</h3>
+                <p>Total Students</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="activeStudents">0</h3>
+                <p>Active (took quizzes)</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="avgStudentScore">0%</h3>
+                <p>Class Average</p>
+            </div>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="search-row">
+            <input type="text" id="searchInput"
+                placeholder="🔍 Search by name or email..."
+                oninput="filterStudents()"/>
+        </div>
+
+        <!-- STUDENTS TABLE -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Email</th>
+                        <th>Quizzes Taken</th>
+                        <th>Avg Score</th>
+                        <th>Best Score</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTable">
+                    <tr>
+                        <td colspan="7" style="text-align:center;">
+                            <div class="spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token) window.location.href = '../login.html';
+        if (user.role !== 'admin') window.location.href = '../dashboard.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        let allStudents = [];
+
+        async function loadStudents() {
+            try {
+                const res = await fetch(`${API}/admin/students`, { headers });
+                allStudents = await res.json();
+                renderSummary(allStudents);
+                renderTable(allStudents);
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+
+        function renderSummary(students) {
+            document.getElementById('totalStudents').textContent = students.length;
+            const active = students.filter(s => s.total_attempts > 0).length;
+            document.getElementById('activeStudents').textContent = active;
+            const scores = students.filter(s => s.avg_score !== null);
+            if (scores.length > 0) {
+                const avg = scores.reduce((sum, s) => sum + parseFloat(s.avg_score), 0) / scores.length;
+                document.getElementById('avgStudentScore').textContent = avg.toFixed(1) + '%';
+            }
+        }
+
+        function renderTable(students) {
+            const tbody = document.getElementById('studentsTable');
+            if (students.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding:3rem;
+                            color:var(--text-muted);">No students registered yet.</td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = students.map((s, i) => `
+                <tr>
+                    <td style="color:var(--text-muted);">${i + 1}</td>
+                    <td>
+                        <div style="display:flex; align-items:center;">
+                            <span class="avatar">${s.name.charAt(0).toUpperCase()}</span>
+                            <strong>${s.name}</strong>
+                        </div>
+                    </td>
+                    <td style="color:var(--text-muted);">${s.email}</td>
+                    <td>
+                        <span class="badge badge-primary">${s.total_attempts || 0}</span>
+                    </td>
+                    <td>
+                        ${s.avg_score !== null ? `
+                            <div class="progress-bar" style="width:80px; display:inline-block;">
+                                <div class="progress-fill"
+                                    style="width:${s.avg_score}%"></div>
+                            </div>
+                            <small> ${parseFloat(s.avg_score).toFixed(1)}%</small>
+                        ` : '<span style="color:var(--text-muted);">—</span>'}
+                    </td>
+                    <td>
+                        ${s.best_score !== null ?
+                            `<span class="badge badge-success">
+                                ${parseFloat(s.best_score).toFixed(1)}%</span>` :
+                            '<span style="color:var(--text-muted);">—</span>'}
+                    </td>
+                    <td style="color:var(--text-muted);">
+                        ${new Date(s.created_at).toLocaleDateString()}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterStudents() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allStudents.filter(s =>
+                s.name.toLowerCase().includes(search) ||
+                s.email.toLowerCase().includes(search)
+            );
+            renderTable(filtered);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '../login.html';
+        }
+
+        loadStudents();
+    </script>
+
+</body>
+</html>

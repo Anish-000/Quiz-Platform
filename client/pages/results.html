@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results — QuizMaster</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .result-header {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        .result-header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        .result-header p {
+            color: var(--text-muted);
+        }
+        .score-circle {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1.5rem auto;
+            position: relative;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        .score-circle svg {
+            position: absolute;
+            top: 0; left: 0;
+            transform: rotate(-90deg);
+        }
+        .score-circle span { position: relative; z-index: 1; }
+        .result-stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+        .result-stat {
+            text-align: center;
+        }
+        .result-stat h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .result-stat p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        .grade-badge {
+            display: inline-block;
+            padding: 0.5rem 2rem;
+            border-radius: 999px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 1rem;
+        }
+        .review-section { margin-top: 2rem; }
+        .review-section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1.2rem;
+        }
+        .review-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.2rem;
+        }
+        .review-card .question-number {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        .review-card .question-text {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        .review-option {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            border: 2px solid transparent;
+        }
+        .review-option.correct {
+            background: rgba(16,185,129,0.1);
+            border-color: var(--success);
+            color: var(--success);
+        }
+        .review-option.incorrect {
+            background: rgba(239,68,68,0.1);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        .review-option.neutral {
+            background: var(--dark-2);
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+        .actions-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+            margin-bottom: 3rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="dashboard.html" class="logo">⚡ QuizMaster</a>
+        <div class="nav-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="quizzes.html">Quizzes</a>
+            <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="results-container">
+
+        <!-- LOADING -->
+        <div id="loadingState">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- RESULT CONTENT -->
+        <div id="resultContent" style="display:none;">
+
+            <!-- SCORE HEADER -->
+            <div class="result-header">
+                <div id="resultEmoji" style="font-size:3rem; margin-bottom:0.5rem;"></div>
+                <h1 id="resultTitle"></h1>
+                <p id="quizTitle" style="color:var(--primary-light); font-weight:600;"></p>
+
+                <!-- SCORE CIRCLE -->
+                <div class="score-circle" id="scoreCircle">
+                    <svg width="160" height="160" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r="70" fill="none"
+                            stroke="var(--dark-3)" stroke-width="10"/>
+                        <circle cx="80" cy="80" r="70" fill="none"
+                            stroke="url(#grad)" stroke-width="10"
+                            stroke-linecap="round"
+                            stroke-dasharray="439.8"
+                            stroke-dashoffset="439.8"
+                            id="scoreArc"/>
+                        <defs>
+                            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#4f46e5"/>
+                                <stop offset="100%" style="stop-color:#06b6d4"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span id="percentageDisplay"></span>
+                </div>
+
+                <div id="gradeBadge" class="grade-badge"></div>
+
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <h3 id="scoreDisplay"></h3>
+                        <p>Score</p>
+                    </div>
+                    <div class="result-stat">
+                        <h3 id="correctCount"></h3>
+                        <p>Correct</p>
+                    </div>
+                    <div class="result-stat">
+                        <h3 id="wrongCount"></h3>
+                        <p>Wrong</p>
+                    </div>
+                    <div class="result-stat">
+                        <h3 id="timeTaken"></h3>
+                        <p>Time Taken</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="actions-row">
+                <a href="quizzes.html" class="btn btn-primary">🎯 Take Another Quiz</a>
+                <a href="dashboard.html" class="btn btn-outline">📊 Dashboard</a>
+                <a href="history.html" class="btn btn-outline">📋 My History</a>
+            </div>
+
+            <!-- ANSWER REVIEW -->
+            <div class="review-section">
+                <h2>📝 Answer Review</h2>
+                <div id="reviewCards"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <footer>
+        <p>© 2024 <strong>QuizMaster</strong> — Built with ❤️ using Node.js, Express & MySQL</p>
+    </footer>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const attemptId = urlParams.get('attemptId');
+        if (!attemptId) window.location.href = 'dashboard.html';
+
+        async function loadResults() {
+            try {
+                const res = await fetch(`${API}/quiz/results/${attemptId}`, { headers });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.message || 'Error loading results.');
+                    window.location.href = 'dashboard.html';
+                    return;
+                }
+
+                renderResults(data);
+
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+
+        function renderResults(data) {
+            const { result, questions } = data;
+            const percentage = parseFloat(result.percentage);
+
+            // Grade logic
+            let grade, emoji, color;
+            if (percentage >= 90) { grade = 'A+'; emoji = '🏆'; color = 'var(--success)'; }
+            else if (percentage >= 80) { grade = 'A'; emoji = '🎉'; color = 'var(--success)'; }
+            else if (percentage >= 70) { grade = 'B'; emoji = '😊'; color = 'var(--primary-light)'; }
+            else if (percentage >= 60) { grade = 'C'; emoji = '👍'; color = 'var(--warning)'; }
+            else if (percentage >= 50) { grade = 'D'; emoji = '😐'; color = 'var(--warning)'; }
+            else { grade = 'F'; emoji = '😔'; color = 'var(--danger)'; }
+
+            document.getElementById('resultEmoji').textContent = emoji;
+            document.getElementById('resultTitle').textContent =
+                percentage >= 50 ? 'Congratulations! You Passed!' : 'Better Luck Next Time!';
+            document.getElementById('quizTitle').textContent = result.quiz_title;
+            document.getElementById('percentageDisplay').textContent = percentage.toFixed(1) + '%';
+            document.getElementById('scoreDisplay').textContent = `${result.score}/${result.total_marks}`;
+            document.getElementById('gradeBadge').textContent = `Grade: ${grade}`;
+            document.getElementById('gradeBadge').style.background = `${color}22`;
+            document.getElementById('gradeBadge').style.color = color;
+            document.getElementById('gradeBadge').style.border = `1px solid ${color}`;
+
+            // Count correct/wrong
+            const correct = questions.filter(q => q.is_correct).length;
+            const wrong = questions.length - correct;
+            document.getElementById('correctCount').textContent = correct;
+            document.getElementById('wrongCount').textContent = wrong;
+
+            // Time taken
+            const mins = Math.floor(result.time_taken / 60);
+            const secs = result.time_taken % 60;
+            document.getElementById('timeTaken').textContent = `${mins}m ${secs}s`;
+
+            // Animate score arc
+            setTimeout(() => {
+                const circumference = 439.8;
+                const offset = circumference - (percentage / 100) * circumference;
+                document.getElementById('scoreArc').style.transition = 'stroke-dashoffset 1.5s ease';
+                document.getElementById('scoreArc').style.strokeDashoffset = offset;
+            }, 300);
+
+            // Render review cards
+            renderReviewCards(questions);
+
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('resultContent').style.display = 'block';
+        }
+
+        function renderReviewCards(questions) {
+            const container = document.getElementById('reviewCards');
+            container.innerHTML = questions.map((q, i) => `
+                <div class="review-card">
+                    <div class="question-number">Question ${i + 1}</div>
+                    <div class="question-text">${q.question_text}</div>
+                    <div>
+                        ${q.options.map(opt => {
+                            let cls = 'neutral';
+                            if (opt.is_correct) cls = 'correct';
+                            else if (opt.id == q.selected_option_id && !opt.is_correct) cls = 'incorrect';
+                            return `
+                                <div class="review-option ${cls}">
+                                    <span>${opt.is_correct ? '✅' : (opt.id == q.selected_option_id ? '❌' : '○')}</span>
+                                    <span>${opt.option_text}</span>
+                                    ${opt.is_correct ? '<span style="margin-left:auto; font-size:0.8rem;">Correct Answer</span>' : ''}
+                                    ${opt.id == q.selected_option_id && !opt.is_correct ? '<span style="margin-left:auto; font-size:0.8rem;">Your Answer</span>' : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        loadResults();
+    </script>
+
+</body>
+</html>

@@ -139,4 +139,43 @@ const addQuestion = async (req, res) => {
     }
 };
 
-module.exports = { getDashboard, createQuiz, updateQuiz, deleteQuiz, addQuestion };
+// Get all students with stats
+const getStudents = async (req, res) => {
+    try {
+        const [students] = await db.query(`
+            SELECT u.id, u.name, u.email, u.created_at,
+                COUNT(DISTINCT r.id) as total_attempts,
+                AVG(r.percentage) as avg_score,
+                MAX(r.percentage) as best_score
+            FROM users u
+            LEFT JOIN results r ON u.id = r.user_id
+            WHERE u.role = 'student'
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+        `);
+        res.json(students);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching students.' });
+    }
+};
+
+// Get all results
+const getAllResults = async (req, res) => {
+    try {
+        const [results] = await db.query(`
+            SELECT r.*, u.name as student_name,
+                q.title as quiz_title, q.id as quiz_id
+            FROM results r
+            JOIN users u ON r.user_id = u.id
+            JOIN quizzes q ON r.quiz_id = q.id
+            ORDER BY r.created_at DESC
+        `);
+        res.json(results);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching results.' });
+    }
+};
+
+module.exports = { getDashboard, createQuiz, updateQuiz, deleteQuiz, addQuestion, getStudents, getAllResults };

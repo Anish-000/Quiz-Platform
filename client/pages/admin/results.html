@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Results — QuizMaster</title>
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        .sidebar {
+            width: 250px;
+            background: var(--dark-2);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2rem;
+            display: block;
+        }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li { margin-bottom: 0.3rem; }
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .sidebar-menu a:hover { background: var(--dark-3); color: var(--text); }
+        .sidebar-menu a.active {
+            background: rgba(79,70,229,0.15);
+            color: var(--primary-light);
+        }
+        .sidebar-divider { border:none; border-top:1px solid var(--border); margin:1rem 0; }
+        .main-content { margin-left: 250px; padding: 2rem; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; }
+        .filters-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filters-row input,
+        .filters-row select {
+            padding: 0.65rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .filters-row input:focus,
+        .filters-row select:focus { border-color: var(--primary); }
+        .filters-row input { width: 250px; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.2rem;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .summary-card h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .summary-card p { color: var(--text-muted); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <a href="admin-dashboard.html" class="logo">⚡ QuizMaster</a>
+        <ul class="sidebar-menu">
+            <li><a href="admin-dashboard.html">📊 Dashboard</a></li>
+            <li><a href="quiz-builder.html">🛠️ Quiz Builder</a></li>
+            <li><a href="manage-quizzes.html">📋 Manage Quizzes</a></li>
+            <li><a href="students.html">👥 Students</a></li>
+            <li><a href="results.html" class="active">🏆 All Results</a></li>
+        </ul>
+        <hr class="sidebar-divider">
+        <ul class="sidebar-menu">
+            <li><a href="#" onclick="logout()">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <div class="page-header">
+            <div>
+                <h1>🏆 All Results</h1>
+                <p style="color:var(--text-muted);">View and filter all quiz attempts</p>
+            </div>
+        </div>
+
+        <!-- SUMMARY CARDS -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3 id="totalResults">0</h3>
+                <p>Total Attempts</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="passCount">0</h3>
+                <p>Passed</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="failCount">0</h3>
+                <p>Failed</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="avgScore">0%</h3>
+                <p>Average Score</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="passRate">0%</h3>
+                <p>Pass Rate</p>
+            </div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="filters-row">
+            <input type="text" id="searchInput"
+                placeholder="🔍 Search student or quiz..."
+                oninput="filterResults()"/>
+            <select id="quizFilter" onchange="filterResults()">
+                <option value="">All Quizzes</option>
+            </select>
+            <select id="gradeFilter" onchange="filterResults()">
+                <option value="">All Grades</option>
+                <option value="pass">✅ Passed (≥50%)</option>
+                <option value="fail">❌ Failed (＜50%)</option>
+                <option value="A">Grade A (≥80%)</option>
+                <option value="B">Grade B (70-79%)</option>
+                <option value="C">Grade C (60-69%)</option>
+            </select>
+        </div>
+
+        <!-- RESULTS COUNT -->
+        <p style="color:var(--text-muted); margin-bottom:1rem; font-size:0.9rem;">
+            Showing <span id="resultCount">0</span> results
+        </p>
+
+        <!-- RESULTS TABLE -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Quiz</th>
+                        <th>Score</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
+                        <th>Time Taken</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                    <tr>
+                        <td colspan="8" style="text-align:center;">
+                            <div class="spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!token) window.location.href = '../login.html';
+        if (user.role !== 'admin') window.location.href = '../dashboard.html';
+
+        const API = 'http://localhost:5000/api';
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        let allResults = [];
+
+        async function loadResults() {
+            try {
+                const res = await fetch(`${API}/admin/results`, { headers });
+                allResults = await res.json();
+                renderSummary(allResults);
+                populateQuizFilter(allResults);
+                renderTable(allResults);
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+
+        function renderSummary(results) {
+            document.getElementById('totalResults').textContent = results.length;
+            const passed = results.filter(r => parseFloat(r.percentage) >= 50).length;
+            const failed = results.length - passed;
+            document.getElementById('passCount').textContent = passed;
+            document.getElementById('failCount').textContent = failed;
+            if (results.length > 0) {
+                const avg = results.reduce((s, r) =>
+                    s + parseFloat(r.percentage), 0) / results.length;
+                document.getElementById('avgScore').textContent = avg.toFixed(1) + '%';
+                document.getElementById('passRate').textContent =
+                    ((passed / results.length) * 100).toFixed(0) + '%';
+            }
+        }
+
+        function populateQuizFilter(results) {
+            const quizzes = [...new Map(results.map(r =>
+                [r.quiz_id, r.quiz_title])).entries()];
+            const select = document.getElementById('quizFilter');
+            quizzes.forEach(([id, title]) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = title;
+                select.appendChild(opt);
+            });
+        }
+
+        function getGrade(percentage) {
+            if (percentage >= 90) return { grade: 'A+', color: 'var(--success)' };
+            if (percentage >= 80) return { grade: 'A', color: 'var(--success)' };
+            if (percentage >= 70) return { grade: 'B', color: 'var(--primary-light)' };
+            if (percentage >= 60) return { grade: 'C', color: 'var(--warning)' };
+            if (percentage >= 50) return { grade: 'D', color: 'var(--warning)' };
+            return { grade: 'F', color: 'var(--danger)' };
+        }
+
+        function filterResults() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const quizFilter = document.getElementById('quizFilter').value;
+            const gradeFilter = document.getElementById('gradeFilter').value;
+
+            let filtered = allResults.filter(r => {
+                const matchSearch =
+                    r.student_name.toLowerCase().includes(search) ||
+                    r.quiz_title.toLowerCase().includes(search);
+                const matchQuiz = !quizFilter || r.quiz_id == quizFilter;
+                let matchGrade = true;
+                const pct = parseFloat(r.percentage);
+                if (gradeFilter === 'pass') matchGrade = pct >= 50;
+                else if (gradeFilter === 'fail') matchGrade = pct < 50;
+                else if (gradeFilter === 'A') matchGrade = pct >= 80;
+                else if (gradeFilter === 'B') matchGrade = pct >= 70 && pct < 80;
+                else if (gradeFilter === 'C') matchGrade = pct >= 60 && pct < 70;
+                return matchSearch && matchQuiz && matchGrade;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(results) {
+            const tbody = document.getElementById('resultsTable');
+            document.getElementById('resultCount').textContent = results.length;
+
+            if (results.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align:center; padding:3rem;
+                            color:var(--text-muted);">No results found.</td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = results.map((r, i) => {
+                const { grade, color } = getGrade(parseFloat(r.percentage));
+                const mins = Math.floor(r.time_taken / 60);
+                const secs = r.time_taken % 60;
+                return `
+                    <tr>
+                        <td style="color:var(--text-muted);">${i + 1}</td>
+                        <td><strong>${r.student_name}</strong></td>
+                        <td>${r.quiz_title}</td>
+                        <td>${r.score}/${r.total_marks}</td>
+                        <td>
+                            <div class="progress-bar" style="width:80px;">
+                                <div class="progress-fill"
+                                    style="width:${r.percentage}%"></div>
+                            </div>
+                            <small>${r.percentage}%</small>
+                        </td>
+                        <td>
+                            <span style="color:${color}; font-weight:700;">${grade}</span>
+                        </td>
+                        <td style="color:var(--text-muted);">${mins}m ${secs}s</td>
+                        <td style="color:var(--text-muted);">
+                            ${new Date(r.created_at).toLocaleDateString()}
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '../login.html';
+        }
+
+        loadResults();
+    </script>
+
+</body>
+</html>

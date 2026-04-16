@@ -183,4 +183,63 @@ const submitQuiz = async (req, res) => {
     }
 };
 
-module.exports = { getQuizzes, getQuizById, startQuiz, submitQuiz };
+
+// Get my results
+const getMyResults = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [results] = await db.query(`
+            SELECT r.*, q.title as quiz_title, qa.id as attempt_id
+            FROM results r
+            JOIN quizzes q ON r.quiz_id = q.id
+            JOIN quiz_attempts qa ON r.attempt_id = qa.id
+            WHERE r.user_id = ?
+            ORDER BY r.created_at DESC
+        `, [userId]);
+        res.json(results);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching results.' });
+    }
+};
+
+// Get single result by attemptId
+const getResultByAttempt = async (req, res) => {
+    try {
+        const { attemptId } = req.params;
+
+        const [results] = await db.query(`
+            SELECT r.*, q.title as quiz_title
+            FROM results r
+            JOIN quizzes q ON r.quiz_id = q.id
+            WHERE r.attempt_id = ?
+        `, [attemptId]);
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Result not found.' });
+        }
+
+        const [questions] = await db.query(`
+            SELECT q.id, q.question_text, a.selected_option_id, a.is_correct
+            FROM questions q
+            LEFT JOIN answers a ON q.id = a.question_id AND a.attempt_id = ?
+            WHERE q.quiz_id = ?
+        `, [attemptId, results[0].quiz_id]);
+
+        for (let q of questions) {
+            const [options] = await db.query(`
+                SELECT id, option_text, is_correct
+                FROM options WHERE question_id = ?
+            `, [q.id]);
+            q.options = options;
+        }
+
+        res.json({ result: results[0], questions });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching result.' });
+    }
+};
+
+module.exports = { getQuizzes, getQuizById, startQuiz, submitQuiz, getMyResults, getResultByAttempt };
