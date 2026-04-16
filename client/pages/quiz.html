@@ -139,7 +139,7 @@
         const token = localStorage.getItem('token');
         if (!token) window.location.href = 'login.html';
 
-        const API = 'http://localhost:5000/api';
+        const API = 'https://quiz-platform-production-346c.up.railway.app/api';
         const headers = {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

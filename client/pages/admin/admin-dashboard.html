@@ -219,7 +219,7 @@
 
         document.getElementById('welcomeText').textContent = `Welcome back, ${user.name}!`;
 
-        const API = 'http://localhost:5000/api';
+        const API = 'https://quiz-platform-production-346c.up.railway.app/api';
         const headers = { 'Authorization': `Bearer ${token}` };
 
         async function loadDashboard() {
