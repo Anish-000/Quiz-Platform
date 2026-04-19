@@ -220,7 +220,10 @@
         document.getElementById('welcomeText').textContent = `Welcome back, ${user.name}!`;
 
         const API = 'https://quiz-platform-production-346c.up.railway.app/api';
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const headers = { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
 
         async function loadDashboard() {
             try {
