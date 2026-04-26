@@ -66,6 +66,16 @@
     </div>
 
     <script>
+        // Clear corrupted auth state
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                JSON.parse(storedUser);
+            } catch(e) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
         async function handleRegister() {
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
